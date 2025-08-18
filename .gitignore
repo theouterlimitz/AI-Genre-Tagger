@@ -1,0 +1,16 @@
+# Python virtual environment
+venv/
+__pycache__/
+
+# Large data files and models
+*.joblib
+*.csv
+fma_metadata/
+training_data/
+
+# Any audio files
+*.mp3
+*.wav
+
+# System files
+.DS_Store
