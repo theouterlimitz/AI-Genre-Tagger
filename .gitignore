@@ -7,10 +7,12 @@ __pycache__/
 *.csv
 fma_metadata/
 training_data/
+spectrograms/
 
-# Any audio files
+# Any audio or image files
 *.mp3
 *.wav
+*.png
 
 # System files
 .DS_Store
