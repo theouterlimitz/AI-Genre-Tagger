@@ -11,8 +11,7 @@ This project serves as an end-to-end example of a machine learning workflow, fro
 * **Custom Model Training:** Learn from your own music! The tool trains a model based on audio files you provide, organized into genre-specific folders.
 * **Audio Feature Extraction:** Analyzes local `.mp3` or `.wav` files to extract key audio "fingerprints" using the `librosa` library.
 * **ML-Powered Genre Prediction:** Uses a `scikit-learn` RandomForest model to predict the genre of unknown tracks.
-* **Automated Metadata Tagging:** Reads existing ID3 tags and writes new, predicted genre tags directly back to your audio files using `mutagen`.
-* **Library Reporting:** Scans a folder of music and outputs a `.csv` file summarizing the entire library with the final genre classifications.
+* **Automated Library Classification:** Scans a folder of music and outputs a `.csv` file summarizing the entire library with predicted genres, perfect for sorting and analysis.
 
 ---
 
@@ -28,10 +27,10 @@ This project is divided into two main parts, designed to create a personalized g
 
 2.  **Music Organizer (`music_organizer.py`):**
     * This script loads your pre-trained custom model.
-    * It scans a different, user-specified folder of your personal music (e.g., your main library or a folder of new tracks).
+    * It scans a different, user-specified folder of your personal music.
     * For each track, it first checks for an existing genre tag.
-    * If the genre is missing or unknown, it extracts the audio features, feeds them to your model for a prediction, and writes the predicted genre back into the file's ID3 tags.
-    * It compiles all the information into a final `my_music_library_classified.csv` report.
+    * If the genre is missing or unknown, it extracts the audio features and feeds them to your model for a prediction.
+    * It compiles all the information (including the new predictions) into a final `my_music_library_classified.csv` report.
 
 ---
 
@@ -75,7 +74,7 @@ This project is divided into two main parts, designed to create a personalized g
     ```
 
 3.  **Organize Your Music Library:**
-    * Run the main organizer script and provide the path to your music collection when prompted. The script will use the model you just trained.
+    * Run the main organizer script and provide the path to your music collection when prompted. The script will use the model you just trained and output a CSV file in that same folder.
     ```bash
     python3 music_organizer.py
     ```
@@ -90,5 +89,6 @@ The machine learning model is designed to be trained on the user's personal, non
 
 ## 🔮 Future Work
 
+* **Implement Robust Tag-Writing:** Add a feature to write the predicted genres directly back to the audio files' metadata.
 * **Upgrade to Multi-Label Tagging:** Transition from a single-genre classifier to a multi-label model that can assign multiple tags (e.g., `['Pop', 'Electronic']`) to hybrid tracks.
 * **Mood & Emotion Analysis:** Expand the model to predict moods based on the Valence-Arousal model (e.g., Happy, Sad, Energetic, Calm).
