@@ -2,16 +2,16 @@
 
 An AI-powered music organizer, built in Python, that analyzes audio files to predict their genre and emotional mood using custom-trained machine learning models.
 
-This project serves as an end-to-end example of a machine learning workflow, from custom data preparation and model training to a practical, real-world application for organizing and understanding a personal music library.
+This project serves as an end-to-end example of a machine learning workflow, from custom data preparation and model training with different architectures (RandomForest and Neural Networks) to a practical, real-world application for organizing and understanding a personal music library.
 
 ---
 
 ## 🎵 Features
 
 * **Dual AI Models:** Classifies music based on two separate, custom-trained models:
-    * **Genre Classification:** Predicts the musical genre (e.g., Pop, Hip-Hop, Rock).
-    * **Mood Analysis:** Predicts the emotional quadrant based on the Valence-Arousal model (e.g., Happy/Excited, Sad/Depressed).
-* **Custom Model Training:** Learn from your own music! The tool includes scripts to train both genre and mood models on user-provided datasets.
+    * **Genre Classification:** A `scikit-learn` RandomForest model trained on your personal music collection to predict custom genres (e.g., Pop, Hip-Hop, Dubstep).
+    * **Mood Analysis:** A `TensorFlow` Neural Network trained on a public dataset to predict emotional quadrants based on the Valence-Arousal model (e.g., Happy/Excited, Sad/Depressed).
+* **Custom Model Training:** Includes dedicated scripts to train both the genre and mood models from scratch.
 * **Audio Feature Extraction:** Analyzes local `.mp3` or `.wav` files to extract key audio "fingerprints" using the `librosa` library.
 * **Automated Library Classification:** Scans a folder of music and outputs a `.csv` file summarizing the entire library with predicted genres and moods, perfect for sorting and analysis.
 
@@ -23,18 +23,19 @@ The project is divided into two main workflows: training the models and using th
 
 ### 1. Model Training
 
-The project uses two separate training scripts:
+The project uses two different training scripts for its two distinct tasks:
 
 * **Genre Model (`train_custom_model.py`):**
     * Learns from a directory of audio files that you have organized into subfolders by genre (e.g., `/training_data/Pop`, `/training_data/Dubstep`).
-    * Extracts audio features from each file and trains a model to associate those features with your genre labels.
+    * Extracts audio features from each file and trains a **RandomForest classifier** to associate those features with your genre labels.
     * Saves the trained model as `genre_classifier_model.joblib`.
 
-* **Mood Model (`mood_classifier_trainer.py`):**
-    * Learns from a dataset of audio files and corresponding Valence-Arousal data.
-    * First, it processes the raw data into four mood quadrants (Happy, Sad, Angry, Calm).
-    * It then extracts audio features from each file and trains a model to associate those features with the mood labels.
-    * Saves the trained model as `mood_classifier_model.joblib`.
+* **Mood Model (`train_mood_nn.py`):**
+    * Learns from a public dataset of audio files and corresponding Valence-Arousal data.
+    * First, it processes the raw data into four mood quadrants (Happy, Sad, Angry, Calm) using `explore_mood_data.py`.
+    * It then uses **oversampling** to create a balanced dataset, preventing model bias.
+    * It extracts audio features and trains a **TensorFlow Neural Network** to learn the complex patterns associated with musical moods.
+    * Saves the trained model as `mood_nn_model.keras` and its associated assets.
 
 ### 2. Music Organization (`music_organizer.py`)
 
@@ -82,9 +83,13 @@ The project uses two separate training scripts:
         ```bash
         python3 train_custom_model.py
         ```
-    * Run the mood training script (after updating the audio path inside the file):
+    * Run the mood data preprocessor:
         ```bash
-        python3 mood_classifier_trainer.py
+        python3 explore_mood_data.py
+        ```
+    * Run the neural network training script (after updating the audio path inside the file):
+        ```bash
+        python3 train_mood_nn.py
         ```
 
 3.  **Organize Your Music Library:**
@@ -105,4 +110,4 @@ The machine learning models are designed to be trained on the user's personal, n
 
 * **Implement Robust Tag-Writing:** Add a feature to write the predicted genres and moods directly back to the audio files' metadata.
 * **Upgrade to Multi-Label Tagging:** Transition from a single-genre classifier to a multi-label model that can assign multiple tags (e.g., `['Pop', 'Electronic']`) to hybrid tracks.
-* **Improve Model Accuracy:** Experiment with different model architectures and techniques for handling imbalanced data to improve prediction accuracy.
+* **Improve Model Accuracy:** Experiment with different neural network architectures (e.g., CNNs) and hyperparameter tuning to improve prediction accuracy.
