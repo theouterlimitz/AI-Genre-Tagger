@@ -1,5 +1,6 @@
 # This script trains a machine learning model to classify music moods
-# based on audio features and the processed mood labels we created.
+# based on audio features. It now includes a step to balance the
+# training data using oversampling to improve accuracy on minority classes.
 
 import os
 import pandas as pd
@@ -10,6 +11,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 import librosa
+from imblearn.over_sampling import RandomOverSampler # Import the oversampler
 
 def extract_features_from_file(file_path):
     """
@@ -44,7 +46,7 @@ def extract_features_from_file(file_path):
 
 def train_mood_model(labels_file='processed_mood_labels.csv', audio_folder='path/to/your/audio'):
     """
-    Loads audio and labels, extracts features, and trains a new mood model.
+    Loads audio and labels, extracts features, balances the data, and trains a new mood model.
     """
     if not os.path.exists(labels_file):
         print(f"Error: Labels file not found at '{labels_file}'")
@@ -67,18 +69,16 @@ def train_mood_model(labels_file='processed_mood_labels.csv', audio_folder='path
         song_id = row['song_id']
         mood_label = row['mood']
         
-        # Construct the expected audio file path
-        # NOTE: You may need to change '.mp3' if your files are '.wav', etc.
         file_path = os.path.join(audio_folder, f"{song_id}.mp3")
 
         if os.path.exists(file_path):
-            print(f"Processing song_id: {song_id}")
+            # print(f"Processing song_id: {song_id}") # Optional: uncomment for verbose output
             features = extract_features_from_file(file_path)
             if features is not None:
                 all_features.append(features)
                 all_labels.append(mood_label)
-        else:
-            print(f"Warning: Audio file not found for song_id: {song_id}")
+        # else:
+            # print(f"Warning: Audio file not found for song_id: {song_id}") # Optional: uncomment for verbose output
 
     if not all_features:
         print("No audio files were successfully processed. Aborting training.")
@@ -89,22 +89,39 @@ def train_mood_model(labels_file='processed_mood_labels.csv', audio_folder='path
 
     print(f"\nFeature extraction complete. Found {len(y)} matching tracks.")
 
-    # --- 3. Split, Scale, and Train ---
+    # --- 3. Split Data into Training and Testing Sets ---
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # NOTE: We will save this scaler as a separate file for mood predictions
+    # ==============================================================================
+    # --- NEW: Balance the Training Data with Oversampling ---
+    # ==============================================================================
+    print("\nBalancing the training data...")
+    print("Original training set distribution:")
+    print(pd.Series(y_train).value_counts())
+    
+    oversampler = RandomOverSampler(random_state=42)
+    X_train_resampled, y_train_resampled = oversampler.fit_resample(X_train, y_train)
+
+    print("\nNew, balanced training set distribution:")
+    print(pd.Series(y_train_resampled).value_counts())
+    # ==============================================================================
+
+    # --- 4. Scale the Features ---
     mood_scaler = StandardScaler()
-    X_train_scaled = mood_scaler.fit_transform(X_train)
+    # Fit the scaler ONLY on the original training data, then transform both sets
+    X_train_scaled = mood_scaler.fit_transform(X_train_resampled)
     X_test_scaled = mood_scaler.transform(X_test)
     
-    print("\nTraining the new mood model...")
+    print("\nTraining the new, balanced mood model...")
+    # Train on the new, resampled data
     classifier = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-    classifier.fit(X_train_scaled, y_train)
+    classifier.fit(X_train_scaled, y_train_resampled)
     print("Training complete!")
 
-    # --- 4. Evaluate and Save ---
+    # --- 5. Evaluate and Save ---
+    # Evaluate on the original, untouched test data
     y_pred = classifier.predict(X_test_scaled)
     accuracy = accuracy_score(y_test, y_pred)
     
@@ -121,12 +138,12 @@ def train_mood_model(labels_file='processed_mood_labels.csv', audio_folder='path
     print(f"Saving new scaler to '{scaler_filename}'")
     joblib.dump(mood_scaler, scaler_filename)
     
-    print("\nDone! Your custom mood model is now ready.")
+    print("\nDone! Your improved custom mood model is now ready.")
 
 if __name__ == "__main__":
     # !!! IMPORTANT !!!
     # You MUST update this path to point to the folder where you
     # have downloaded the audio files that correspond to the CSVs.
-    path_to_audio_files = '/path/to/your/mood/dataset/audio'
+    path_to_audio_files = '/home/j/AI-Genre-Tagger/' # Example path
     
     train_mood_model(audio_folder=path_to_audio_files)
