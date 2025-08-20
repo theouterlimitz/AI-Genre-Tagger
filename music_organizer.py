@@ -1,14 +1,14 @@
-# This is the final, complete script. It scans a directory of audio files,
-# reads their metadata, analyzes them for BPM, uses our trained ML model
-# to predict the genre, and saves everything into a CSV file.
+# This script scans a directory of audio files, reads their metadata,
+# analyzes them using a trained ML model to predict the genre,
+# and saves all results into a CSV file.
+# NOTE: This version does NOT write tags back to the original audio files.
 
 import os
 import csv
 import librosa
 import numpy as np
-import pandas as pd
+import mutagen
 from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, TXXX, error
 import joblib
 
 # --- Global variables to hold our trained model and scaler ---
@@ -35,20 +35,14 @@ def load_ml_model(model_path='genre_classifier_model.joblib', scaler_path='featu
     print("Model and scaler loaded successfully.")
     return True
 
-# ==============================================================================
-# --- CORRECTED FEATURE EXTRACTION FUNCTION ---
-# This now matches the function in train_custom_model.py
-# ==============================================================================
 def get_audio_features(file_path):
     """
     Extracts a set of audio features from a single audio file.
     This is the "fingerprint" we create for each song.
     """
     try:
-        # Load 30 seconds of the audio file
         y, sr = librosa.load(file_path, mono=True, duration=30)
         
-        # --- Extract a robust set of features ---
         chroma_stft = librosa.feature.chroma_stft(y=y, sr=sr)
         rms = librosa.feature.rms(y=y)
         spec_cent = librosa.feature.spectral_centroid(y=y, sr=sr)
@@ -57,7 +51,6 @@ def get_audio_features(file_path):
         zcr = librosa.feature.zero_crossing_rate(y)
         mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
         
-        # Concatenate all the features into a single feature vector
         features = np.array([
             np.mean(chroma_stft), np.var(chroma_stft),
             np.mean(rms), np.var(rms),
@@ -65,16 +58,14 @@ def get_audio_features(file_path):
             np.mean(spec_bw), np.var(spec_bw),
             np.mean(rolloff), np.var(rolloff),
             np.mean(zcr), np.var(zcr),
-            *np.mean(mfccs, axis=1), *np.var(mfccs, axis=1) # Unpack means and variances of all 20 MFCCs
+            *np.mean(mfccs, axis=1), *np.var(mfccs, axis=1)
         ])
         
-        # Reshape to a 2D array for the scaler and model
         return features.reshape(1, -1)
 
     except Exception as e:
         print(f"    -> Could not extract features from {os.path.basename(file_path)}. Error: {e}")
         return None
-# ==============================================================================
 
 def predict_genre(features):
     """
@@ -87,22 +78,9 @@ def predict_genre(features):
     prediction = CLASSIFIER_MODEL.predict(features_scaled)
     return prediction[0]
 
-def update_file_tag(file_path, tag_name, tag_value):
-    """
-    Writes a custom value to a TXXX tag in the audio file (e.g., BPM, GENRE).
-    """
-    try:
-        audio = ID3(file_path)
-        frame = TXXX(encoding=3, desc=tag_name, text=str(tag_value))
-        audio.add(frame)
-        audio.save(v2_version=3)
-        print(f"    -> {tag_name} tag ({tag_value}) written to {os.path.basename(file_path)}")
-    except Exception as e:
-        print(f"    -> Could not write {tag_name} tag for {os.path.basename(file_path)}. Error: {e}")
-
 def process_music_folder(folder_path):
     """
-    Main function to scan folder, analyze files, and save results.
+    Main function to scan folder, analyze files, and save results to a CSV.
     """
     music_library = []
     print(f"\nScanning '{folder_path}' for audio files...\n")
@@ -115,20 +93,21 @@ def process_music_folder(folder_path):
             song_data = {'filename': filename, 'title': 'Unknown', 'artist': 'Unknown', 'genre': 'Unknown'}
             
             try:
-                audio = EasyID3(file_path)
-                song_data['title'] = audio.get('title', [os.path.splitext(filename)[0]])[0]
-                song_data['artist'] = audio.get('artist', ['Unknown'])[0]
-                song_data['genre'] = audio.get('genre', ['Unknown'])[0]
-            except error:
-                print(f"    -> No ID3 tags found for {filename}.")
-            
+                audio = mutagen.File(file_path, easy=True)
+                if audio:
+                    song_data['title'] = audio.get('title', [os.path.splitext(filename)[0]])[0]
+                    song_data['artist'] = audio.get('artist', ['Unknown'])[0]
+                    song_data['genre'] = audio.get('genre', ['Unknown'])[0]
+            except Exception:
+                print(f"    -> No readable tags found for {filename}.")
+
             if song_data['genre'] == 'Unknown':
                 print("    -> Genre not found in tags. Analyzing with ML model...")
                 features = get_audio_features(file_path)
                 if features is not None:
                     predicted_genre = predict_genre(features)
                     song_data['genre'] = predicted_genre
-                    update_file_tag(file_path, 'GENRE', predicted_genre)
+                    print(f"    -> Predicted Genre: {predicted_genre}")
             else:
                 print(f"    -> Found existing genre: {song_data['genre']}")
 
