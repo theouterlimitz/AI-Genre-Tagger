@@ -1,7 +1,6 @@
-# This script scans a directory of audio files, reads their metadata,
-# analyzes them using a trained ML model to predict the genre,
-# and saves all results into a CSV file.
-# NOTE: This version does NOT write tags back to the original audio files.
+# This script scans a directory of audio files, analyzes them using
+# trained ML models to predict both genre and mood, and saves all
+# results into a comprehensive CSV file.
 
 import os
 import csv
@@ -11,34 +10,45 @@ import mutagen
 from mutagen.easyid3 import EasyID3
 import joblib
 
-# --- Global variables to hold our trained model and scaler ---
-CLASSIFIER_MODEL = None
-FEATURE_SCALER = None
+# --- Global variables for our trained models and scalers ---
+GENRE_CLASSIFIER = None
+GENRE_SCALER = None
+MOOD_CLASSIFIER = None
+MOOD_SCALER = None
 
-def load_ml_model(model_path='genre_classifier_model.joblib', scaler_path='feature_scaler.joblib'):
+def load_models():
     """
-    Loads the trained machine learning model and feature scaler from disk.
+    Loads both the genre and mood machine learning models from disk.
     """
-    global CLASSIFIER_MODEL, FEATURE_SCALER
-    if not all(os.path.exists(p) for p in [model_path, scaler_path]):
-        print("="*50)
-        print("!!! WARNING: Model files not found. !!!")
-        print(f"Cannot find '{model_path}' or '{scaler_path}'.")
-        print("Genre prediction will be disabled.")
-        print("Please run the 'train_custom_model.py' script first.")
-        print("="*50)
-        return False
+    global GENRE_CLASSIFIER, GENRE_SCALER, MOOD_CLASSIFIER, MOOD_SCALER
     
-    print("Loading ML model and feature scaler...")
-    CLASSIFIER_MODEL = joblib.load(model_path)
-    FEATURE_SCALER = joblib.load(scaler_path)
-    print("Model and scaler loaded successfully.")
+    # --- Load Genre Model ---
+    genre_model_path = 'genre_classifier_model.joblib'
+    genre_scaler_path = 'feature_scaler.joblib'
+    if os.path.exists(genre_model_path) and os.path.exists(genre_scaler_path):
+        print("Loading Genre model...")
+        GENRE_CLASSIFIER = joblib.load(genre_model_path)
+        GENRE_SCALER = joblib.load(genre_scaler_path)
+        print("Genre model loaded successfully.")
+    else:
+        print("!!! WARNING: Genre model files not found. Genre prediction will be disabled.")
+
+    # --- Load Mood Model ---
+    mood_model_path = 'mood_classifier_model.joblib'
+    mood_scaler_path = 'mood_feature_scaler.joblib'
+    if os.path.exists(mood_model_path) and os.path.exists(mood_scaler_path):
+        print("Loading Mood model...")
+        MOOD_CLASSIFIER = joblib.load(mood_model_path)
+        MOOD_SCALER = joblib.load(mood_scaler_path)
+        print("Mood model loaded successfully.")
+    else:
+        print("!!! WARNING: Mood model files not found. Mood prediction will be disabled.")
+
     return True
 
 def get_audio_features(file_path):
     """
-    Extracts a set of audio features from a single audio file.
-    This is the "fingerprint" we create for each song.
+    Extracts a universal set of audio features from a single audio file.
     """
     try:
         y, sr = librosa.load(file_path, mono=True, duration=30)
@@ -69,13 +79,24 @@ def get_audio_features(file_path):
 
 def predict_genre(features):
     """
-    Uses the loaded model to predict the genre for a set of audio features.
+    Uses the loaded genre model to predict the genre.
     """
-    if CLASSIFIER_MODEL is None or FEATURE_SCALER is None:
-        return "ML Model not loaded"
+    if GENRE_CLASSIFIER is None:
+        return "Not Available"
     
-    features_scaled = FEATURE_SCALER.transform(features)
-    prediction = CLASSIFIER_MODEL.predict(features_scaled)
+    features_scaled = GENRE_SCALER.transform(features)
+    prediction = GENRE_CLASSIFIER.predict(features_scaled)
+    return prediction[0]
+
+def predict_mood(features):
+    """
+    Uses the loaded mood model to predict the mood.
+    """
+    if MOOD_CLASSIFIER is None:
+        return "Not Available"
+        
+    features_scaled = MOOD_SCALER.transform(features)
+    prediction = MOOD_CLASSIFIER.predict(features_scaled)
     return prediction[0]
 
 def process_music_folder(folder_path):
@@ -90,8 +111,9 @@ def process_music_folder(folder_path):
             file_path = os.path.join(folder_path, filename)
             print(f"Processing: {filename}")
 
-            song_data = {'filename': filename, 'title': 'Unknown', 'artist': 'Unknown', 'genre': 'Unknown'}
+            song_data = {'filename': filename, 'title': 'Unknown', 'artist': 'Unknown', 'genre': 'Unknown', 'mood': 'Unknown'}
             
+            # --- Read Existing Tags ---
             try:
                 audio = mutagen.File(file_path, easy=True)
                 if audio:
@@ -101,15 +123,23 @@ def process_music_folder(folder_path):
             except Exception:
                 print(f"    -> No readable tags found for {filename}.")
 
-            if song_data['genre'] == 'Unknown':
-                print("    -> Genre not found in tags. Analyzing with ML model...")
-                features = get_audio_features(file_path)
-                if features is not None:
+            # --- Analyze and Predict ---
+            print("    -> Analyzing audio features...")
+            features = get_audio_features(file_path)
+            
+            if features is not None:
+                # Predict Genre if it's missing
+                if song_data['genre'] == 'Unknown':
                     predicted_genre = predict_genre(features)
                     song_data['genre'] = predicted_genre
                     print(f"    -> Predicted Genre: {predicted_genre}")
-            else:
-                print(f"    -> Found existing genre: {song_data['genre']}")
+                else:
+                    print(f"    -> Found existing genre: {song_data['genre']}")
+                
+                # Always predict mood
+                predicted_mood = predict_mood(features)
+                song_data['mood'] = predicted_mood
+                print(f"    -> Predicted Mood: {predicted_mood}")
 
             music_library.append(song_data)
 
@@ -118,7 +148,8 @@ def process_music_folder(folder_path):
     
     try:
         with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['filename', 'title', 'artist', 'genre']
+            # Add 'mood' to the output file
+            fieldnames = ['filename', 'title', 'artist', 'genre', 'mood']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(music_library)
@@ -127,6 +158,6 @@ def process_music_folder(folder_path):
         print(f"Error writing to CSV file: {e}")
 
 if __name__ == "__main__":
-    if load_ml_model():
+    if load_models():
         path = input("Enter the path to your music folder: ")
         process_music_folder(path)
