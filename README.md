@@ -1,36 +1,47 @@
-# AI Music Genre Tagger
+# AI Music Genre & Mood Tagger
 
-An AI-powered music organizer, built in Python, that analyzes audio files to predict and tag their genre using a custom-trained machine learning model.
+An AI-powered music organizer, built in Python, that analyzes audio files to predict their genre and emotional mood using custom-trained machine learning models.
 
-This project serves as an end-to-end example of a machine learning workflow, from custom data preparation and model training to a practical, real-world application for organizing a personal music library.
+This project serves as an end-to-end example of a machine learning workflow, from custom data preparation and model training to a practical, real-world application for organizing and understanding a personal music library.
 
 ---
 
 ## 🎵 Features
 
-* **Custom Model Training:** Learn from your own music! The tool trains a model based on audio files you provide, organized into genre-specific folders.
+* **Dual AI Models:** Classifies music based on two separate, custom-trained models:
+    * **Genre Classification:** Predicts the musical genre (e.g., Pop, Hip-Hop, Rock).
+    * **Mood Analysis:** Predicts the emotional quadrant based on the Valence-Arousal model (e.g., Happy/Excited, Sad/Depressed).
+* **Custom Model Training:** Learn from your own music! The tool includes scripts to train both genre and mood models on user-provided datasets.
 * **Audio Feature Extraction:** Analyzes local `.mp3` or `.wav` files to extract key audio "fingerprints" using the `librosa` library.
-* **ML-Powered Genre Prediction:** Uses a `scikit-learn` RandomForest model to predict the genre of unknown tracks.
-* **Automated Library Classification:** Scans a folder of music and outputs a `.csv` file summarizing the entire library with predicted genres, perfect for sorting and analysis.
+* **Automated Library Classification:** Scans a folder of music and outputs a `.csv` file summarizing the entire library with predicted genres and moods, perfect for sorting and analysis.
 
 ---
 
 ## 🛠️ How It Works
 
-This project is divided into two main parts, designed to create a personalized genre classifier:
+The project is divided into two main workflows: training the models and using them to organize a library.
 
-1.  **Model Training (`train_custom_model.py`):**
-    * The script processes a directory of audio files that you have organized into subfolders by genre (e.g., `/training_data/Pop`, `/training_data/Dubstep`).
-    * It extracts a comprehensive set of audio features from each file to understand its acoustic properties.
-    * It then trains a RandomForest classifier to learn the specific patterns that connect your audio features to your genre labels.
-    * Finally, it saves the trained model (`genre_classifier_model.joblib`) and a feature scaler (`feature_scaler.joblib`) for later use.
+### 1. Model Training
 
-2.  **Music Organizer (`music_organizer.py`):**
-    * This script loads your pre-trained custom model.
-    * It scans a different, user-specified folder of your personal music.
-    * For each track, it first checks for an existing genre tag.
-    * If the genre is missing or unknown, it extracts the audio features and feeds them to your model for a prediction.
-    * It compiles all the information (including the new predictions) into a final `my_music_library_classified.csv` report.
+The project uses two separate training scripts:
+
+* **Genre Model (`train_custom_model.py`):**
+    * Learns from a directory of audio files that you have organized into subfolders by genre (e.g., `/training_data/Pop`, `/training_data/Dubstep`).
+    * Extracts audio features from each file and trains a model to associate those features with your genre labels.
+    * Saves the trained model as `genre_classifier_model.joblib`.
+
+* **Mood Model (`mood_classifier_trainer.py`):**
+    * Learns from a dataset of audio files and corresponding Valence-Arousal data.
+    * First, it processes the raw data into four mood quadrants (Happy, Sad, Angry, Calm).
+    * It then extracts audio features from each file and trains a model to associate those features with the mood labels.
+    * Saves the trained model as `mood_classifier_model.joblib`.
+
+### 2. Music Organization (`music_organizer.py`)
+
+* This script loads your pre-trained custom models for both genre and mood.
+* It scans a user-specified folder of your personal music.
+* For each track, it performs audio analysis to predict both the genre and the mood.
+* It compiles all the information into a final `my_music_library_classified.csv` report.
 
 ---
 
@@ -39,7 +50,7 @@ This project is divided into two main parts, designed to create a personalized g
 ### Prerequisites
 
 * Python 3.x
-* A personal collection of audio files (`.mp3`, `.wav`) to train the model on.
+* A personal collection of audio files (`.mp3`, `.wav`) to train the models on.
 
 ### Installation & Setup
 
@@ -60,35 +71,38 @@ This project is divided into two main parts, designed to create a personalized g
     pip install -r requirements.txt
     ```
 
-### Usage: The 3-Step Workflow
+### Usage: The Workflow
 
 1.  **Prepare Your Training Data:**
-    * Create a folder named `training_data` inside the project directory.
-    * Inside it, create subfolders for each genre you want to classify (e.g., `Pop`, `Rock`, `Dubstep`, `Hip-Hop`).
-    * Place at least 15-20 representative audio files into each genre subfolder. **The quality and diversity of this data is the most important factor for model accuracy.**
+    * **For Genre:** Create a `training_data` folder with subfolders for each genre (e.g., `Pop`, `Rock`) and fill them with representative audio files.
+    * **For Mood:** Download a mood dataset (like the DEAM dataset) containing audio files and valence/arousal CSVs.
 
-2.  **Train Your Custom Model:**
-    * Run the custom training script. This will create (or overwrite) the `genre_classifier_model.joblib` and `feature_scaler.joblib` files.
-    ```bash
-    python3 train_custom_model.py
-    ```
+2.  **Train Your Custom Models:**
+    * Run the genre training script:
+        ```bash
+        python3 train_custom_model.py
+        ```
+    * Run the mood training script (after updating the audio path inside the file):
+        ```bash
+        python3 mood_classifier_trainer.py
+        ```
 
 3.  **Organize Your Music Library:**
-    * Run the main organizer script and provide the path to your music collection when prompted. The script will use the model you just trained and output a CSV file in that same folder.
-    ```bash
-    python3 music_organizer.py
-    ```
+    * Run the main organizer script. It will use the models you just trained and output a CSV file with both genre and mood predictions.
+        ```bash
+        python3 music_organizer.py
+        ```
 
 ---
 
 ## ⚖️ Legal Disclaimer
 
-The machine learning model is designed to be trained on the user's personal, non-distributed collection of legally obtained audio files for educational and research purposes. The audio files themselves are not included in this repository. The scripts are provided to allow users to create and use their own models on their own datasets.
+The machine learning models are designed to be trained on the user's personal, non-distributed collection of legally obtained audio files for educational and research purposes. The audio files themselves are not included in this repository. The scripts are provided to allow users to create and use their own models on their own datasets.
 
 ---
 
 ## 🔮 Future Work
 
-* **Implement Robust Tag-Writing:** Add a feature to write the predicted genres directly back to the audio files' metadata.
+* **Implement Robust Tag-Writing:** Add a feature to write the predicted genres and moods directly back to the audio files' metadata.
 * **Upgrade to Multi-Label Tagging:** Transition from a single-genre classifier to a multi-label model that can assign multiple tags (e.g., `['Pop', 'Electronic']`) to hybrid tracks.
-* **Mood & Emotion Analysis:** Expand the model to predict moods based on the Valence-Arousal model (e.g., Happy, Sad, Energetic, Calm).
+* **Improve Model Accuracy:** Experiment with different model architectures and techniques for handling imbalanced data to improve prediction accuracy.
